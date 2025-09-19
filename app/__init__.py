@@ -3,6 +3,9 @@ import os
 from app.extensions import db, jwt, migrate
 from flask_cors import CORS
 from flask import Flask
+from app.models import Oferta, Busqueda, Nota
+
+
 load_dotenv()
 
 def create_app():
