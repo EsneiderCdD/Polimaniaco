@@ -1,6 +1,7 @@
 """
 Scraper principal modular para Computrabajo.
-- Pagina automáticamente (siguiendo "Siguiente" o rel=next) hasta MAX_RESULTS o MAX_PAGES.
+- Permite múltiples búsquedas de palabras clave.
+- Pagina automáticamente hasta MAX_RESULTS o MAX_PAGES.
 - Extrae tarjetas, deja raw_fecha, luego aplica filtros (recientes + blacklist).
 - Evita duplicados por URL y por título dentro de la misma ejecución.
 - Guarda en la DB usando app.create_app() context.
@@ -11,7 +12,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timezone, timedelta
 
-from .config import TERM, LOCATION, MAX_RESULTS, MAX_PAGES, REQUEST_DELAY
+from .config import LOCATION, MAX_RESULTS, MAX_PAGES, REQUEST_DELAY, BLACKLIST_COMPANIES
 from .utils import sleep_between_requests, title_is_duplicate, parse_hace_to_timedelta
 from .filters import apply_filters
 
@@ -24,7 +25,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36"
 }
 
-def build_search_url(term=TERM, location=LOCATION):
+def build_search_url(term, location=LOCATION):
     return f"{BASE_URL}/trabajo-de-{term}-en-{location}"
 
 def fetch_page(url):
@@ -33,10 +34,6 @@ def fetch_page(url):
     return r.text
 
 def fetch_offer_detail(url: str) -> str:
-    """
-    Dada la URL de una oferta, descarga la página y extrae la descripción completa.
-    Devuelve string o 'Descripción no disponible'.
-    """
     try:
         html = fetch_page(url)
         soup = BeautifulSoup(html, "html.parser")
@@ -44,19 +41,13 @@ def fetch_offer_detail(url: str) -> str:
         if not detail_div:
             detail_div = soup.find("div", class_=lambda c: c and "descripcion" in c.lower())
         if detail_div:
-            texto = detail_div.get_text(" ", strip=True)
-            return texto
-        else:
-            return "Descripción no disponible"
+            return detail_div.get_text(" ", strip=True)
+        return "Descripción no disponible"
     except Exception as e:
         print(f"[scraper] error detalle {url}: {e}")
         return "Descripción no disponible"
 
 def parse_offers_from_soup(soup, max_to_take=50):
-    """
-    Extrae ofertas desde un BeautifulSoup de una página de resultados.
-    Devuelve lista de dicts con: titulo, empresa, ubicacion, raw_fecha, url, descripcion, fuente
-    """
     ofertas = []
     cards = soup.find_all("article")
     for c in cards:
@@ -106,11 +97,11 @@ def find_next_page_url(soup):
             return urljoin(BASE_URL, a["href"])
     return None
 
-def collect_offers(max_total=MAX_RESULTS, max_pages=MAX_PAGES):
+def collect_offers(term, max_total=MAX_RESULTS, max_pages=MAX_PAGES):
     collected = []
     seen_urls = set()
     seen_titles = set()
-    page_url = build_search_url()
+    page_url = build_search_url(term)
     pages = 0
 
     while page_url and len(collected) < max_total and pages < max_pages:
@@ -144,11 +135,6 @@ def collect_offers(max_total=MAX_RESULTS, max_pages=MAX_PAGES):
     return collected
 
 def guardar_ofertas_db(ofertas):
-    """
-    Guarda en DB las ofertas (evitando duplicados por URL).
-    Usa create_app() y app_context.
-    Calcula fecha_publicacion a partir de raw_fecha si es posible.
-    """
     app = create_app()
     with app.app_context():
         nuevas = 0
@@ -161,7 +147,6 @@ def guardar_ofertas_db(ofertas):
 
             descripcion_full = fetch_offer_detail(o["url"])
 
-            # Calcular fecha_publicacion a partir de raw_fecha
             raw = o.get("raw_fecha")
             td = parse_hace_to_timedelta(raw)
             fecha_pub = datetime.now(timezone.utc) - td if td else datetime.now(timezone.utc)
@@ -182,16 +167,18 @@ def guardar_ofertas_db(ofertas):
         print(f"[scraper] guardadas en DB: {nuevas}")
 
 def main():
-    crudas = collect_offers()
-    print(f"[scraper] total crudas: {len(crudas)}")
+    keywords = ["desarrollador-de-software", "desarrollador-web"]
+    all_crudas = []
 
-    filtradas = apply_filters(crudas)
-    print(f"[scraper] después de filtros: {len(filtradas)}")
+    for kw in keywords:
+        crudas = collect_offers(kw)
+        print(f"[scraper] total crudas para {kw}: {len(crudas)}")
+        filtradas = apply_filters(crudas)
+        print(f"[scraper] después de filtros para {kw}: {len(filtradas)}")
+        guardar_ofertas_db(filtradas)
+        all_crudas.extend(filtradas)
 
-    for f in filtradas:
-        print(f"[ok] guardando: {f['titulo']} - {f['empresa']} - {f['raw_fecha']}")
-
-    guardar_ofertas_db(filtradas)
+    print(f"[scraper] total combinadas filtradas: {len(all_crudas)}")
 
 
 if __name__ == "__main__":
