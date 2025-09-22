@@ -1,5 +1,5 @@
 from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Oferta(db.Model):
     __tablename__ = 'ofertas'
@@ -7,10 +7,11 @@ class Oferta(db.Model):
     titulo = db.Column(db.String(255), nullable=False)
     empresa = db.Column(db.String(255))
     ubicacion = db.Column(db.String(255))
-    fecha_publicacion = db.Column(db.DateTime, default=datetime.utcnow)
-    url = db.Column(db.String(512), unique=True)  # clave única para evitar duplicados
+    fecha_publicacion = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    raw_fecha = db.Column(db.String(50))
+    url = db.Column(db.String(512), unique=True)
     descripcion = db.Column(db.Text)
-    fuente = db.Column(db.String(50))  # ejemplo: 'Computrabajo'
+    fuente = db.Column(db.String(50))
 
 class Busqueda(db.Model):
     __tablename__ = 'busquedas'

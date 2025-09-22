@@ -1,5 +1,3 @@
-# app/scrapers/computrabajo/scraper.py
-
 """
 Scraper principal modular para Computrabajo.
 - Pagina automáticamente (siguiendo "Siguiente" o rel=next) hasta MAX_RESULTS o MAX_PAGES.
@@ -20,6 +18,7 @@ from .filters import apply_filters
 from app import create_app
 from app.extensions import db
 from app.models import Oferta
+from datetime import datetime, timezone
 
 BASE_URL = "https://www.computrabajo.com.co"
 HEADERS = {
@@ -33,6 +32,28 @@ def fetch_page(url):
     r = requests.get(url, headers=HEADERS, timeout=15)
     r.raise_for_status()
     return r.text
+
+def fetch_offer_detail(url: str) -> str:
+    """
+    Dada la URL de una oferta, descarga la página y extrae la descripción completa.
+    Devuelve string o 'Descripción no disponible'.
+    """
+    try:
+        html = fetch_page(url)
+        soup = BeautifulSoup(html, "html.parser")
+        # Computrabajo suele tener la descripción en <div class="bDetail"> o similar
+        detail_div = soup.find("div", class_="bDetail")
+        if not detail_div:
+            # fallback: probar con section o div que tenga 'descripcion' en class
+            detail_div = soup.find("div", class_=lambda c: c and "descripcion" in c.lower())
+        if detail_div:
+            texto = detail_div.get_text(" ", strip=True)
+            return texto
+        else:
+            return "Descripción no disponible"
+    except Exception as e:
+        print(f"[scraper] error detalle {url}: {e}")
+        return "Descripción no disponible"
 
 def parse_offers_from_soup(soup, max_to_take=50):
     """
@@ -57,7 +78,6 @@ def parse_offers_from_soup(soup, max_to_take=50):
             if not txt:
                 continue
             low = txt.lower()
-            # heurística: si contiene 'hace' o 'min' o 'hora' es fecha
             if ("hace" in low) or ("min" in low) or ("hora" in low) or ("hoy" in low):
                 raw_fecha = txt
             elif empresa == "N/A":
@@ -72,7 +92,6 @@ def parse_offers_from_soup(soup, max_to_take=50):
             "empresa": empresa,
             "ubicacion": ubicacion,
             "raw_fecha": raw_fecha,   # texto tipo "Hace 3 horas"
-            # fecha_publicacion real se colocará como ahora() al guardar
             "url": url,
             "descripcion": descripcion.strip() or "Oferta oculta",
             "fuente": "Computrabajo"
@@ -83,14 +102,9 @@ def parse_offers_from_soup(soup, max_to_take=50):
     return ofertas
 
 def find_next_page_url(soup):
-    """
-    Intenta encontrar la URL de la siguiente página de resultados.
-    Busca <a rel="next"> o enlaces con texto 'Siguiente' / 'siguiente'.
-    """
     a_rel = soup.find("a", rel="next")
     if a_rel and a_rel.get("href"):
         return urljoin(BASE_URL, a_rel["href"])
-    # fallback: buscar enlaces con texto 'Siguiente' o 'siguiente'
     for a in soup.find_all("a", href=True):
         txt = a.get_text(" ", strip=True).lower()
         if "siguiente" in txt or "sig." in txt or "next" in txt:
@@ -112,22 +126,18 @@ def collect_offers(max_total=MAX_RESULTS, max_pages=MAX_PAGES):
         offers = parse_offers_from_soup(soup, max_to_take=50)
         print(f"[scraper] ofertas en página: {len(offers)}")
 
-        # deduplicado por url y por título (en la misma ejecución)
         for o in offers:
             if not o["url"]:
                 continue
             if o["url"] in seen_urls:
                 continue
             if title_is_duplicate(o["titulo"], seen_titles):
-                # title_is_duplicate añade el título si no existía
-                # si devolvió True (ya visto) lo saltamos
                 continue
             seen_urls.add(o["url"])
             collected.append(o)
             if len(collected) >= max_total:
                 break
 
-        # intenta siguiente página
         page_url = find_next_page_url(soup)
         pages += 1
         if page_url and len(collected) < max_total:
@@ -152,13 +162,16 @@ def guardar_ofertas_db(ofertas):
             existe = Oferta.query.filter_by(url=o["url"]).first()
             if existe:
                 continue
+
+            descripcion_full = fetch_offer_detail(o["url"])
+
             nueva = Oferta(
                 titulo=o.get("titulo"),
                 empresa=o.get("empresa"),
                 ubicacion=o.get("ubicacion"),
-                fecha_publicacion=datetime.utcnow(),  # guardamos fecha de inserción
+                fecha_publicacion=datetime.now(timezone.utc),  # <<<
                 url=o.get("url"),
-                descripcion=o.get("descripcion"),
+                descripcion=descripcion_full,
                 fuente=o.get("fuente")
             )
             db.session.add(nueva)
@@ -167,16 +180,19 @@ def guardar_ofertas_db(ofertas):
         print(f"[scraper] guardadas en DB: {nuevas}")
 
 def main():
-    # 1) recolectar sin filtrar hasta MAX_RESULTS (ej: 150)
     crudas = collect_offers()
-    # 2) aplicar filtros (Hoy, Remoto, Blacklist)
+    print(f"[scraper] total crudas: {len(crudas)}")
+
     filtradas = apply_filters(crudas)
     print(f"[scraper] después de filtros (Hoy + Remoto + Blacklist): {len(filtradas)}")
-    # limitar a MAX_RESULTS por si sobrepasa
-    filtradas = filtradas[:MAX_RESULTS]
-    # 3) guardar en DB
+
+    # DEBUG extra para ver cuáles sí pasan
+    for f in filtradas:
+        print(f"[ok] guardando: {f['titulo']} - {f['empresa']} - {f['raw_fecha']}")
+
     guardar_ofertas_db(filtradas)
+
+
 
 if __name__ == "__main__":
     main()
-

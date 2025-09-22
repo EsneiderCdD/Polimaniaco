@@ -1,5 +1,3 @@
-# app/scrapers/computrabajo/utils.py
-
 import time
 import re
 from datetime import datetime, timedelta

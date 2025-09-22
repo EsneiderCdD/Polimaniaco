@@ -1,5 +1,3 @@
-# app/scrapers/computrabajo/config.py
-
 # Términos / ubicación base
 TERM = "desarrollador-de-software"   # palabra clave (sin espacios, con guiones)
 LOCATION = "colombia"
