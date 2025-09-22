@@ -1,10 +1,10 @@
 """
 Scraper principal modular para Computrabajo.
-- Permite múltiples búsquedas de palabras clave.
-- Pagina automáticamente hasta MAX_RESULTS o MAX_PAGES.
+- Pagina automáticamente (siguiendo "Siguiente" o rel=next) hasta MAX_RESULTS o MAX_PAGES.
 - Extrae tarjetas, deja raw_fecha, luego aplica filtros (recientes + blacklist).
 - Evita duplicados por URL y por título dentro de la misma ejecución.
 - Guarda en la DB usando app.create_app() context.
+- Busca múltiples términos definidos en SEARCH_TERMS.
 """
 
 import requests
@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timezone, timedelta
 
-from .config import LOCATION, MAX_RESULTS, MAX_PAGES, REQUEST_DELAY, BLACKLIST_COMPANIES
+from .config import LOCATION, MAX_RESULTS, MAX_PAGES, REQUEST_DELAY
 from .utils import sleep_between_requests, title_is_duplicate, parse_hace_to_timedelta
 from .filters import apply_filters
 
@@ -25,6 +25,14 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36"
 }
 
+# Lista de términos de búsqueda
+SEARCH_TERMS = [
+    "desarrollador-de-software",
+    "desarrollador-web",
+    "desarrollador-fullstack",
+    "desarrollador-frontend"
+]
+
 def build_search_url(term, location=LOCATION):
     return f"{BASE_URL}/trabajo-de-{term}-en-{location}"
 
@@ -34,6 +42,7 @@ def fetch_page(url):
     return r.text
 
 def fetch_offer_detail(url: str) -> str:
+    """Extrae descripción completa de la oferta, fallback a 'Descripción no disponible'"""
     try:
         html = fetch_page(url)
         soup = BeautifulSoup(html, "html.parser")
@@ -48,6 +57,7 @@ def fetch_offer_detail(url: str) -> str:
         return "Descripción no disponible"
 
 def parse_offers_from_soup(soup, max_to_take=50):
+    """Extrae ofertas de la página de resultados"""
     ofertas = []
     cards = soup.find_all("article")
     for c in cards:
@@ -131,10 +141,11 @@ def collect_offers(term, max_total=MAX_RESULTS, max_pages=MAX_PAGES):
         else:
             break
 
-    print(f"[scraper] total recogidas (sin filtrar): {len(collected)}")
+    print(f"[scraper] total crudas para {term}: {len(collected)}")
     return collected
 
 def guardar_ofertas_db(ofertas):
+    """Guarda ofertas en DB, evitando duplicados por URL, calcula fecha_publicacion desde raw_fecha"""
     app = create_app()
     with app.app_context():
         nuevas = 0
@@ -146,7 +157,6 @@ def guardar_ofertas_db(ofertas):
                 continue
 
             descripcion_full = fetch_offer_detail(o["url"])
-
             raw = o.get("raw_fecha")
             td = parse_hace_to_timedelta(raw)
             fecha_pub = datetime.now(timezone.utc) - td if td else datetime.now(timezone.utc)
@@ -167,18 +177,26 @@ def guardar_ofertas_db(ofertas):
         print(f"[scraper] guardadas en DB: {nuevas}")
 
 def main():
-    keywords = ["desarrollador-de-software", "desarrollador-web"]
-    all_crudas = []
-
-    for kw in keywords:
-        crudas = collect_offers(kw)
-        print(f"[scraper] total crudas para {kw}: {len(crudas)}")
+    todas_filtradas = []
+    for term in SEARCH_TERMS:
+        crudas = collect_offers(term)
         filtradas = apply_filters(crudas)
-        print(f"[scraper] después de filtros para {kw}: {len(filtradas)}")
-        guardar_ofertas_db(filtradas)
-        all_crudas.extend(filtradas)
+        print(f"[scraper] después de filtros para {term}: {len(filtradas)}")
+        for f in filtradas:
+            print(f"[ok] guardando: {f['titulo']} - {f['empresa']} - {f['raw_fecha']}")
+        todas_filtradas.extend(filtradas)
 
-    print(f"[scraper] total combinadas filtradas: {len(all_crudas)}")
+    # Evitar duplicados globales antes de guardar
+    seen_urls_global = set()
+    final_guardar = []
+    for o in todas_filtradas:
+        if o["url"] in seen_urls_global:
+            continue
+        seen_urls_global.add(o["url"])
+        final_guardar.append(o)
+
+    guardar_ofertas_db(final_guardar)
+    print(f"[scraper] total combinadas filtradas: {len(final_guardar)}")
 
 
 if __name__ == "__main__":
