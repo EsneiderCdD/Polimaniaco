@@ -1,12 +1,9 @@
-# app/scrapers/computrabajo/scraper.py
-
-"""
-Scraper mínimo para Computrabajo.
-Ejecutar: python -m app.scrapers.computrabajo.scraper
-"""
-
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
+from app.extensions import db
+from app.models import Oferta
+from app import create_app
 
 BASE_URL = "https://www.computrabajo.com.co"
 
@@ -30,7 +27,6 @@ def parse_search_results(html, max_results=10):
     soup = BeautifulSoup(html, "html.parser")
     ofertas = []
 
-    # Cada oferta suele estar en un contenedor <article> o similar
     cards = soup.find_all("article", limit=max_results)
 
     for c in cards:
@@ -39,41 +35,67 @@ def parse_search_results(html, max_results=10):
         titulo = titulo_tag.get_text(strip=True) if titulo_tag else "N/A"
         url = BASE_URL + titulo_tag["href"] if titulo_tag else None
 
-        # Empresa
-        empresa_tag = c.find("p", class_="dIB")
-        empresa = empresa_tag.get_text(strip=True) if empresa_tag else "N/A"
+        empresa, ubicacion, fecha, descripcion = "N/A", "N/A", None, ""
 
-        # Ubicación
-        ubicacion_tag = c.find("p", class_="fs16")
-        ubicacion = ubicacion_tag.get_text(strip=True) if ubicacion_tag else "N/A"
-
-        # Fecha de publicación (texto)
-        fecha_tag = c.find("p", class_="fc_base")
-        fecha = fecha_tag.get_text(strip=True) if fecha_tag else "N/A"
-
-        # Descripción breve
-        desc_tag = c.find("p", class_="fs13")
-        descripcion = desc_tag.get_text(strip=True) if desc_tag else ""
+        # Buscar párrafos dentro de la tarjeta
+        p_tags = c.find_all("p")
+        for p in p_tags:
+            txt = p.get_text(" ", strip=True)
+            if not txt:
+                continue
+            if "Hace" in txt or "hace" in txt or "hora" in txt or "día" in txt:
+                fecha = txt  # no lo usamos, pero lo dejamos por referencia
+            elif empresa == "N/A":
+                empresa = txt
+            elif ubicacion == "N/A":
+                ubicacion = txt
+            else:
+                descripcion += " " + txt
 
         oferta = {
             "titulo": titulo,
             "empresa": empresa,
             "ubicacion": ubicacion,
-            "fecha_publicacion": fecha,  # luego convertimos a date
+            "fecha_publicacion": datetime.utcnow(),
             "url": url,
-            "descripcion": descripcion,
+            "descripcion": descripcion.strip() if descripcion else "Oferta oculta",
             "fuente": "Computrabajo"
         }
         ofertas.append(oferta)
 
     return ofertas
 
+def guardar_ofertas(ofertas):
+    """
+    Guarda ofertas nuevas en la DB evitando duplicados por URL.
+    """
+    nuevas = 0
+    for o in ofertas:
+        existente = Oferta.query.filter_by(url=o["url"]).first()
+        if existente:
+            continue
+        nueva = Oferta(
+            titulo=o["titulo"],
+            empresa=o["empresa"],
+            ubicacion=o["ubicacion"],
+            fecha_publicacion=o["fecha_publicacion"],
+            url=o["url"],
+            descripcion=o["descripcion"],
+            fuente=o["fuente"]
+        )
+        db.session.add(nueva)
+        nuevas += 1
+    db.session.commit()
+    print(f"Guardadas {nuevas} ofertas nuevas en la DB.")
+
 def main():
     html = fetch_search_page()
     ofertas = parse_search_results(html, max_results=5)
-    print("Ofertas encontradas:")
-    for o in ofertas:
-        print(o)
+    print("Ofertas extraídas:", len(ofertas))
+
+    app = create_app()
+    with app.app_context():
+        guardar_ofertas(ofertas)
 
 if __name__ == "__main__":
     main()
