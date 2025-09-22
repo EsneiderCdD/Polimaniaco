@@ -1,7 +1,7 @@
 """
 Scraper principal modular para Computrabajo.
 - Pagina automáticamente (siguiendo "Siguiente" o rel=next) hasta MAX_RESULTS o MAX_PAGES.
-- Extrae tarjetas, deja raw_fecha, luego aplica filtros (Hoy, Remoto, Blacklist).
+- Extrae tarjetas, deja raw_fecha, luego aplica filtros (recientes + blacklist).
 - Evita duplicados por URL y por título dentro de la misma ejecución.
 - Guarda en la DB usando app.create_app() context.
 """
@@ -9,16 +9,15 @@ Scraper principal modular para Computrabajo.
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from .config import TERM, LOCATION, MAX_RESULTS, MAX_PAGES, REQUEST_DELAY
-from .utils import sleep_between_requests, title_is_duplicate
+from .utils import sleep_between_requests, title_is_duplicate, parse_hace_to_timedelta
 from .filters import apply_filters
 
 from app import create_app
 from app.extensions import db
 from app.models import Oferta
-from datetime import datetime, timezone
 
 BASE_URL = "https://www.computrabajo.com.co"
 HEADERS = {
@@ -41,10 +40,8 @@ def fetch_offer_detail(url: str) -> str:
     try:
         html = fetch_page(url)
         soup = BeautifulSoup(html, "html.parser")
-        # Computrabajo suele tener la descripción en <div class="bDetail"> o similar
         detail_div = soup.find("div", class_="bDetail")
         if not detail_div:
-            # fallback: probar con section o div que tenga 'descripcion' en class
             detail_div = soup.find("div", class_=lambda c: c and "descripcion" in c.lower())
         if detail_div:
             texto = detail_div.get_text(" ", strip=True)
@@ -63,7 +60,6 @@ def parse_offers_from_soup(soup, max_to_take=50):
     ofertas = []
     cards = soup.find_all("article")
     for c in cards:
-        # título y URL
         a = c.find("a", href=True)
         titulo = a.get_text(" ", strip=True) if a else "N/A"
         href = a["href"] if a else None
@@ -71,7 +67,6 @@ def parse_offers_from_soup(soup, max_to_take=50):
 
         empresa, ubicacion, raw_fecha, descripcion = "N/A", "N/A", None, ""
 
-        # leer todos los <p> de la tarjeta para identificar
         p_tags = c.find_all("p")
         for p in p_tags:
             txt = p.get_text(" ", strip=True)
@@ -91,7 +86,7 @@ def parse_offers_from_soup(soup, max_to_take=50):
             "titulo": titulo,
             "empresa": empresa,
             "ubicacion": ubicacion,
-            "raw_fecha": raw_fecha,   # texto tipo "Hace 3 horas"
+            "raw_fecha": raw_fecha,
             "url": url,
             "descripcion": descripcion.strip() or "Oferta oculta",
             "fuente": "Computrabajo"
@@ -152,6 +147,7 @@ def guardar_ofertas_db(ofertas):
     """
     Guarda en DB las ofertas (evitando duplicados por URL).
     Usa create_app() y app_context.
+    Calcula fecha_publicacion a partir de raw_fecha si es posible.
     """
     app = create_app()
     with app.app_context():
@@ -165,11 +161,17 @@ def guardar_ofertas_db(ofertas):
 
             descripcion_full = fetch_offer_detail(o["url"])
 
+            # Calcular fecha_publicacion a partir de raw_fecha
+            raw = o.get("raw_fecha")
+            td = parse_hace_to_timedelta(raw)
+            fecha_pub = datetime.now(timezone.utc) - td if td else datetime.now(timezone.utc)
+
             nueva = Oferta(
                 titulo=o.get("titulo"),
                 empresa=o.get("empresa"),
                 ubicacion=o.get("ubicacion"),
-                fecha_publicacion=datetime.now(timezone.utc),  # <<<
+                raw_fecha=raw,
+                fecha_publicacion=fecha_pub,
                 url=o.get("url"),
                 descripcion=descripcion_full,
                 fuente=o.get("fuente")
@@ -184,14 +186,12 @@ def main():
     print(f"[scraper] total crudas: {len(crudas)}")
 
     filtradas = apply_filters(crudas)
-    print(f"[scraper] después de filtros (Hoy + Remoto + Blacklist): {len(filtradas)}")
+    print(f"[scraper] después de filtros: {len(filtradas)}")
 
-    # DEBUG extra para ver cuáles sí pasan
     for f in filtradas:
         print(f"[ok] guardando: {f['titulo']} - {f['empresa']} - {f['raw_fecha']}")
 
     guardar_ofertas_db(filtradas)
-
 
 
 if __name__ == "__main__":

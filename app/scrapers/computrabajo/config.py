@@ -1,10 +1,10 @@
 # Términos / ubicación base
 TERM = "desarrollador-de-software"   # palabra clave (sin espacios, con guiones)
-LOCATION = "colombia"
+LOCATION = "antioquia"               # cambio de colombia -> antioquia
 
 # Límites
-MAX_RESULTS = 150   # máximo global que queremos obtener (ajusta a 100/150/200)
-MAX_PAGES = 10      # protección extra por si hay muchas páginas
+MAX_RESULTS = 500   # aumento de 150 -> 500
+MAX_PAGES = 30      # aumento de 10 -> 30
 
 # Lista negra (empresas a ignorar). Edita esto según tu preferencia.
 BLACKLIST_COMPANIES = [
