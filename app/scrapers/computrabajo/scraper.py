@@ -1,16 +1,16 @@
 """
 Scraper principal modular para Computrabajo.
-- Pagina automáticamente (siguiendo "Siguiente" o rel=next) hasta MAX_RESULTS o MAX_PAGES.
-- Extrae tarjetas, deja raw_fecha, luego aplica filtros (recientes + blacklist).
+- Pagine automáticamente hasta MAX_RESULTS o MAX_PAGES.
+- Extrae tarjetas, deja raw_fecha, luego aplica filtros.
 - Evita duplicados por URL y por título dentro de la misma ejecución.
 - Guarda en la DB usando app.create_app() context.
-- Busca múltiples términos definidos en SEARCH_TERMS.
+- Solo guarda descripción básica; descripciones completas las llena micro_scraper_descripcion.py
 """
 
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from .config import LOCATION, MAX_RESULTS, MAX_PAGES, REQUEST_DELAY
 from .utils import sleep_between_requests, title_is_duplicate, parse_hace_to_timedelta
@@ -22,10 +22,10 @@ from app.models import Oferta
 
 BASE_URL = "https://www.computrabajo.com.co"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/121.0 Safari/537.36"
 }
 
-# Lista de términos de búsqueda
 SEARCH_TERMS = [
     "desarrollador-de-software",
     "desarrollador-web",
@@ -42,19 +42,8 @@ def fetch_page(url):
     return r.text
 
 def fetch_offer_detail(url: str) -> str:
-    """Extrae descripción completa de la oferta, fallback a 'Descripción no disponible'"""
-    try:
-        html = fetch_page(url)
-        soup = BeautifulSoup(html, "html.parser")
-        detail_div = soup.find("div", class_="bDetail")
-        if not detail_div:
-            detail_div = soup.find("div", class_=lambda c: c and "descripcion" in c.lower())
-        if detail_div:
-            return detail_div.get_text(" ", strip=True)
-        return "Descripción no disponible"
-    except Exception as e:
-        print(f"[scraper] error detalle {url}: {e}")
-        return "Descripción no disponible"
+    """Coloca descripción placeholder; micro_scraper llenará descripción completa"""
+    return "Descripción no disponible"
 
 def parse_offers_from_soup(soup, max_to_take=50):
     """Extrae ofertas de la página de resultados"""
@@ -145,7 +134,7 @@ def collect_offers(term, max_total=MAX_RESULTS, max_pages=MAX_PAGES):
     return collected
 
 def guardar_ofertas_db(ofertas):
-    """Guarda ofertas en DB, evitando duplicados por URL, calcula fecha_publicacion desde raw_fecha"""
+    """Guarda ofertas en DB, evitando duplicados por URL y calcula fecha_publicacion desde raw_fecha"""
     app = create_app()
     with app.app_context():
         nuevas = 0
@@ -156,7 +145,6 @@ def guardar_ofertas_db(ofertas):
             if existe:
                 continue
 
-            descripcion_full = fetch_offer_detail(o["url"])
             raw = o.get("raw_fecha")
             td = parse_hace_to_timedelta(raw)
             fecha_pub = datetime.now(timezone.utc) - td if td else datetime.now(timezone.utc)
@@ -168,7 +156,7 @@ def guardar_ofertas_db(ofertas):
                 raw_fecha=raw,
                 fecha_publicacion=fecha_pub,
                 url=o.get("url"),
-                descripcion=descripcion_full,
+                descripcion=o.get("descripcion"),  # placeholder
                 fuente=o.get("fuente")
             )
             db.session.add(nueva)
@@ -182,8 +170,6 @@ def main():
         crudas = collect_offers(term)
         filtradas = apply_filters(crudas)
         print(f"[scraper] después de filtros para {term}: {len(filtradas)}")
-        for f in filtradas:
-            print(f"[ok] guardando: {f['titulo']} - {f['empresa']} - {f['raw_fecha']}")
         todas_filtradas.extend(filtradas)
 
     # Evitar duplicados globales antes de guardar
@@ -197,7 +183,6 @@ def main():
 
     guardar_ofertas_db(final_guardar)
     print(f"[scraper] total combinadas filtradas: {len(final_guardar)}")
-
 
 if __name__ == "__main__":
     main()
