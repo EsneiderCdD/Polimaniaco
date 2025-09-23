@@ -1,10 +1,10 @@
 """
 Scraper principal modular para Computrabajo.
-- Pagine automáticamente hasta MAX_RESULTS o MAX_PAGES.
+- Pagina automáticamente hasta MAX_RESULTS o MAX_PAGES.
 - Extrae tarjetas, deja raw_fecha, luego aplica filtros.
 - Evita duplicados por URL y por título dentro de la misma ejecución.
 - Guarda en la DB usando app.create_app() context.
-- Solo guarda descripción básica; descripciones completas las llena micro_scraper_descripcion.py
+- Solo guarda descripción básica; descripciones completas las llena micro_scraper_description.py
 """
 
 import requests
@@ -33,17 +33,21 @@ SEARCH_TERMS = [
     "desarrollador-frontend"
 ]
 
+
 def build_search_url(term, location=LOCATION):
     return f"{BASE_URL}/trabajo-de-{term}-en-{location}"
+
 
 def fetch_page(url):
     r = requests.get(url, headers=HEADERS, timeout=15)
     r.raise_for_status()
     return r.text
 
+
 def fetch_offer_detail(url: str) -> str:
     """Coloca descripción placeholder; micro_scraper llenará descripción completa"""
     return "Descripción no disponible"
+
 
 def parse_offers_from_soup(soup, max_to_take=50):
     """Extrae ofertas de la página de resultados"""
@@ -86,6 +90,7 @@ def parse_offers_from_soup(soup, max_to_take=50):
             break
     return ofertas
 
+
 def find_next_page_url(soup):
     a_rel = soup.find("a", rel="next")
     if a_rel and a_rel.get("href"):
@@ -95,6 +100,7 @@ def find_next_page_url(soup):
         if "siguiente" in txt or "sig." in txt or "next" in txt:
             return urljoin(BASE_URL, a["href"])
     return None
+
 
 def collect_offers(term, max_total=MAX_RESULTS, max_pages=MAX_PAGES):
     collected = []
@@ -133,6 +139,7 @@ def collect_offers(term, max_total=MAX_RESULTS, max_pages=MAX_PAGES):
     print(f"[scraper] total crudas para {term}: {len(collected)}")
     return collected
 
+
 def guardar_ofertas_db(ofertas):
     """Guarda ofertas en DB, evitando duplicados por URL y calcula fecha_publicacion desde raw_fecha"""
     app = create_app()
@@ -164,6 +171,7 @@ def guardar_ofertas_db(ofertas):
         db.session.commit()
         print(f"[scraper] guardadas en DB: {nuevas}")
 
+
 def main():
     todas_filtradas = []
     for term in SEARCH_TERMS:
@@ -183,6 +191,7 @@ def main():
 
     guardar_ofertas_db(final_guardar)
     print(f"[scraper] total combinadas filtradas: {len(final_guardar)}")
+
 
 if __name__ == "__main__":
     main()
