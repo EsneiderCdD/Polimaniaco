@@ -1,7 +1,6 @@
 import re
 from typing import Dict, List
 from .utils import normalize_text
-
 TECH_CATEGORIES: Dict[str, List[str]] = {
     "lenguajes": [
         "php", "javascript", "node.js", "c#", "html5", "css3",
@@ -15,8 +14,14 @@ TECH_CATEGORIES: Dict[str, List[str]] = {
         "nestjs", "spring webflux", "react", "ruby on rails",
         "express.js", "vuetify", "hotwire"
     ],
-    "librerias": ["bootstrap", "jquery", "ajax", "tailwind", "sequelize", "typeorm"],
-    "bases_datos": ["mysql", "sql server", "mongodb", "postgresql", "redis", "firestore", "firebase"],
+    "librerias": [
+        "bootstrap", "jquery", "ajax", "tailwind", "sequelize", 
+        "typeorm"
+    ],
+    "bases_datos": [
+        "mysql", "sql server", "mongodb", "postgresql", "redis", 
+        "firestore", "firebase"
+    ],
     "nube_devops": [
         "azure", "azure devops", "docker", "kubernetes", "aws",
         "gcp", "ci/cd", "helm", "grafana"
@@ -24,24 +29,39 @@ TECH_CATEGORIES: Dict[str, List[str]] = {
     "control_versiones": ["git", "github actions"],
     "arquitectura_metodologias": [
         "microservicios", "restful", "soa", "poo",
-        "async/await", "inyeccion de dependencias",
+        "async/await", "inyeccion de dependencias", "inyección de dependencias",
         "singleton", "solid", "cliente-servidor", "n-capas",
         "graphql", "websockets", "sse", "grpc", "http/2",
         "oauth", "jwt", "tdd"
     ],
-    "integraciones": ["pasarelas de pago", "apis", "webservices"],
+    "integraciones": [
+        "pasarelas de pago", "apis", "webservices", "api rest",
+        "servicios web", "integraciones"
+    ],
     "inteligencia_artificial": [
         "inteligencia artificial", "ia", "langchain", "langgraph",
-        "llm", "embeddings", "rag", "crewai", "mcp"
+        "llm", "embeddings", "rag", "crewai", "mcp",
+        "machine learning", "ml", "deep learning", "ai",
+        "artificial intelligence"
     ],
     "ofimatica_gestion": [
         "jira", "asana", "trello", "excel", "google workspace",
         "drive", "sheets", "docs", "sonarcloud", "sonarqube",
         "postman", "swagger", "jest", "cypress", "vitest"
     ],
-    "ciberseguridad": ["ciberseguridad", "unit testing", "wcag"],
-    "marketing_digital": ["seo", "marketing digital", "crm"],
-    "erp_lowcode": ["wordpress", "odoo", "flutterflow"]
+    "ciberseguridad": [
+        "ciberseguridad", "unit testing", "wcag",
+        "security", "testing", "pruebas unitarias",
+        "seguridad informatica", "seguridad informática"
+    ],
+    "marketing_digital": [
+        "seo", "marketing digital", "crm", "sem", "google ads",
+        "facebook ads", "social media", "redes sociales"
+    ],
+    "erp_lowcode": [
+        "wordpress", "odoo", "flutterflow", "low code", "no code",
+        "sap", "erp", "crm systems"
+    ],
 }
 def extract_stack(text: str) -> Dict[str, List[str]]:
     """
