@@ -2,38 +2,47 @@ import re
 from typing import Dict, List
 from .utils import normalize_text
 
-# Diccionario de stack tecnológico por categorías
 TECH_CATEGORIES: Dict[str, List[str]] = {
     "lenguajes": [
         "php", "javascript", "node.js", "c#", "html5", "css3",
-        "sql", "json", "c", "linq", "typescript", "python"
+        "sql", "json", "c", "linq", "typescript", "python",
+        "pl/sql", "java", "ruby"
     ],
     "frameworks": [
         "shopify", "magento", "woocommerce", "vtex", "laravel",
         "vue.js", "quasar", "angular", ".net core", "asp.net core",
-        "scrum", "kanban", "wordpress", "odoo"
+        "scrum", "kanban", "wordpress", "odoo", "django", "fastapi",
+        "nestjs", "spring webflux", "react", "ruby on rails",
+        "express.js", "vuetify", "hotwire"
     ],
-    "librerias": ["bootstrap", "jquery", "ajax"],
-    "bases_datos": ["mysql", "sql server", "mongodb"],
-    "nube_devops": ["azure", "azure devops", "docker", "kubernetes"],
-    "control_versiones": ["git"],
+    "librerias": ["bootstrap", "jquery", "ajax", "tailwind", "sequelize", "typeorm"],
+    "bases_datos": ["mysql", "sql server", "mongodb", "postgresql", "redis", "firestore", "firebase"],
+    "nube_devops": [
+        "azure", "azure devops", "docker", "kubernetes", "aws",
+        "gcp", "ci/cd", "helm", "grafana"
+    ],
+    "control_versiones": ["git", "github actions"],
     "arquitectura_metodologias": [
         "microservicios", "restful", "soa", "poo",
         "async/await", "inyeccion de dependencias",
-        "singleton", "solid", "cliente-servidor", "n-capas"
+        "singleton", "solid", "cliente-servidor", "n-capas",
+        "graphql", "websockets", "sse", "grpc", "http/2",
+        "oauth", "jwt", "tdd"
     ],
     "integraciones": ["pasarelas de pago", "apis", "webservices"],
-    "inteligencia_artificial": ["inteligencia artificial", "ia"],
+    "inteligencia_artificial": [
+        "inteligencia artificial", "ia", "langchain", "langgraph",
+        "llm", "embeddings", "rag", "crewai", "mcp"
+    ],
     "ofimatica_gestion": [
         "jira", "asana", "trello", "excel", "google workspace",
-        "drive", "sheets", "docs"
+        "drive", "sheets", "docs", "sonarcloud", "sonarqube",
+        "postman", "swagger", "jest", "cypress", "vitest"
     ],
-    "ciberseguridad": ["ciberseguridad", "unit testing"],
-    "marketing_digital": ["seo", "marketing digital"],
-    "erp_lowcode": ["wordpress", "odoo"]
+    "ciberseguridad": ["ciberseguridad", "unit testing", "wcag"],
+    "marketing_digital": ["seo", "marketing digital", "crm"],
+    "erp_lowcode": ["wordpress", "odoo", "flutterflow"]
 }
-
-
 def extract_stack(text: str) -> Dict[str, List[str]]:
     """
     Extrae tecnologías de un texto y las organiza por categoría.

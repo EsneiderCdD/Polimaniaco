@@ -1,0 +1,48 @@
+# Prompt: Actualización de TECH_CATEGORIES
+
+## Instrucciones precisas:
+
+Recibirás dos elementos:
+1. Un diccionario `TECH_CATEGORIES` actual
+2. Un JSON con ofertas de empleo
+
+Tu tarea es ÚNICAMENTE:
+
+### 1. Revisar y actualizar TECH_CATEGORIES
+- Busca tecnologías mencionadas en el JSON que NO estén en el diccionario actual
+- Agrégalas a la categoría correspondiente
+- NO modifiques la estructura existente
+- NO crees funciones adicionales
+- NO hagas validaciones extra
+
+### 2. Sugerencias de nuevas categorías (opcional)
+Solo si encuentras en el JSON tecnologías que:
+- Aparecen frecuentemente (3+ menciones)
+- No encajan en las categorías existentes
+- Son claramente tecnológicas
+
+## Respuesta esperada:
+
+```python
+TECH_CATEGORIES: Dict[str, List[str]] = {
+    # Diccionario actualizado
+}
+```
+
+**Y al final:**
+- Nuevas categorías sugeridas: [solo si aplica, basado en el JSON]
+
+## Restricciones importantes:
+- NO investigues tecnologías externas
+- NO agregues tecnologías que no estén en el JSON
+- NO expliques el proceso
+- NO refactorices el código
+- NO crees nuevas funcionalidades
+- Respuesta máxima: 1 bloque de código + sugerencias breves
+
+## Ejemplo de lo que NO hacer:
+- Agregar validaciones
+- Crear funciones helper
+- Explicar cada cambio
+- Investigar en internet
+- Agregar tecnologías no mencionadas en el JSON

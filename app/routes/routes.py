@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from app.models import Oferta, Busqueda, Nota
+from app.models.models import Oferta, Busqueda, Nota, AnalisisResultado
 
 bp = Blueprint('api', __name__)
 
@@ -88,3 +89,35 @@ def add_nota():
     db.session.add(nueva_nota)
     db.session.commit()
     return jsonify({'mensaje': 'Nota creada', 'id': nueva_nota.id}), 201
+
+# --- Endpoints para AnalisisResultado ---
+# --- Endpoints para AnalisisResultado ---
+@bp.route('/analisis', methods=['GET'])
+def get_analisis():
+    from app.models.models import AnalisisResultado  # Asegúrate de importar el modelo
+    analisis = AnalisisResultado.query.all()
+    resultados = []
+    for a in analisis:
+        resultados.append({
+            'id': a.id,
+            'oferta_id': a.oferta_id,
+            'fecha': a.fecha.isoformat() if a.fecha else None,
+            'ciudad': a.ciudad,
+            'modalidad': a.modalidad,
+            'cargo': a.cargo,
+            'lenguajes': a.lenguajes,
+            'frameworks': a.frameworks,
+            'librerias': a.librerias,
+            'bases_datos': a.bases_datos,
+            'nube_devops': a.nube_devops,
+            'control_versiones': a.control_versiones,
+            'arquitectura_metodologias': a.arquitectura_metodologias,
+            'integraciones': a.integraciones,
+            'inteligencia_artificial': a.inteligencia_artificial,
+            'ofimatica_gestion': a.ofimatica_gestion,
+            'ciberseguridad': a.ciberseguridad,
+            'marketing_digital': a.marketing_digital,
+            'erp_lowcode': a.erp_lowcode,
+            'fecha_analisis': a.fecha_analisis.isoformat() if a.fecha_analisis else None
+        })
+    return jsonify(resultados), 200
