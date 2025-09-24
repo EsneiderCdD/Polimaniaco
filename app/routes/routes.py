@@ -91,16 +91,16 @@ def add_nota():
     return jsonify({'mensaje': 'Nota creada', 'id': nueva_nota.id}), 201
 
 # --- Endpoints para AnalisisResultado ---
-# --- Endpoints para AnalisisResultado ---
 @bp.route('/analisis', methods=['GET'])
 def get_analisis():
-    from app.models.models import AnalisisResultado  # Asegúrate de importar el modelo
     analisis = AnalisisResultado.query.all()
     resultados = []
     for a in analisis:
         resultados.append({
             'id': a.id,
             'oferta_id': a.oferta_id,
+            'url': a.url,  # Nuevo
+            'compatibilidad': a.compatibilidad,  # Nuevo
             'fecha': a.fecha.isoformat() if a.fecha else None,
             'ciudad': a.ciudad,
             'modalidad': a.modalidad,
@@ -120,4 +120,5 @@ def get_analisis():
             'erp_lowcode': a.erp_lowcode,
             'fecha_analisis': a.fecha_analisis.isoformat() if a.fecha_analisis else None
         })
+    return jsonify(resultados), 200
     return jsonify(resultados), 200

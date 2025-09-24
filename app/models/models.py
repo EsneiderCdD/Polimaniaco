@@ -66,6 +66,7 @@ class OfertaTecnologia(db.Model):
     oferta = db.relationship("Oferta", backref="ofertas_tecnologias")
     tecnologia = db.relationship("Tecnologia", backref="tecnologias_ofertas")
 
+
 class AnalisisResultado(db.Model):
     __tablename__ = 'analisis_resultados'
 
@@ -74,6 +75,12 @@ class AnalisisResultado(db.Model):
     # Relación con oferta original
     oferta_id = db.Column(db.Integer, db.ForeignKey('ofertas.id'), nullable=False)
     oferta = db.relationship('Oferta', backref=db.backref('analisis_resultado', lazy=True))
+
+    # URL de la oferta (nuevo)
+    url = db.Column(db.String(512))
+
+    # Puntaje de compatibilidad (nuevo)
+    compatibilidad = db.Column(db.Float, default=0.0)
 
     # Datos principales de la oferta (copiados para conveniencia)
     fecha = db.Column(db.DateTime)
