@@ -1,47 +1,58 @@
 import re
-from typing import List, Dict
+from typing import Dict, List
 from .utils import normalize_text
 
-# Lista inicial de tecnologías conocidas
-# 🚨 Esta lista se puede extender fácilmente en el futuro
-TECHNOLOGIES = [
-    "python", "java", "javascript", "typescript", "c#", ".net",
-    "react", "angular", "vue", "django", "flask",
-    "sql", "mysql", "postgresql", "mongodb",
-    "aws", "azure", "gcp", "docker", "kubernetes",
-    "html", "css", "php", "ruby", "go", "rust"
-]
+# Diccionario de stack tecnológico por categorías
+TECH_CATEGORIES: Dict[str, List[str]] = {
+    "lenguajes": [
+        "php", "javascript", "node.js", "c#", "html5", "css3",
+        "sql", "json", "c", "linq", "typescript", "python"
+    ],
+    "frameworks": [
+        "shopify", "magento", "woocommerce", "vtex", "laravel",
+        "vue.js", "quasar", "angular", ".net core", "asp.net core",
+        "scrum", "kanban", "wordpress", "odoo"
+    ],
+    "librerias": ["bootstrap", "jquery", "ajax"],
+    "bases_datos": ["mysql", "sql server", "mongodb"],
+    "nube_devops": ["azure", "azure devops", "docker", "kubernetes"],
+    "control_versiones": ["git"],
+    "arquitectura_metodologias": [
+        "microservicios", "restful", "soa", "poo",
+        "async/await", "inyeccion de dependencias",
+        "singleton", "solid", "cliente-servidor", "n-capas"
+    ],
+    "integraciones": ["pasarelas de pago", "apis", "webservices"],
+    "inteligencia_artificial": ["inteligencia artificial", "ia"],
+    "ofimatica_gestion": [
+        "jira", "asana", "trello", "excel", "google workspace",
+        "drive", "sheets", "docs"
+    ],
+    "ciberseguridad": ["ciberseguridad", "unit testing"],
+    "marketing_digital": ["seo", "marketing digital"],
+    "erp_lowcode": ["wordpress", "odoo"]
+}
 
-def extract_technologies(text: str) -> List[str]:
+
+def extract_stack(text: str) -> Dict[str, List[str]]:
     """
-    Extrae las tecnologías mencionadas en un texto.
-    Retorna una lista única de tecnologías detectadas.
+    Extrae tecnologías de un texto y las organiza por categoría.
+    Retorna un dict con categorías → lista de tecnologías encontradas.
     """
     if not text:
-        return []
+        return {cat: [] for cat in TECH_CATEGORIES}
 
     text = normalize_text(text)
+    found: Dict[str, List[str]] = {cat: [] for cat in TECH_CATEGORIES}
 
-    found = []
-    for tech in TECHNOLOGIES:
-        # regex con word boundaries para evitar falsos positivos
-        pattern = r"\b" + re.escape(tech.lower()) + r"\b"
-        if re.search(pattern, text):
-            found.append(tech)
+    for category, tech_list in TECH_CATEGORIES.items():
+        for tech in tech_list:
+            pattern = r"\b" + re.escape(tech.lower()) + r"\b"
+            if re.search(pattern, text):
+                found[category].append(tech)
 
-    return sorted(set(found))
+    # Eliminamos duplicados
+    for category in found:
+        found[category] = sorted(set(found[category]))
 
-
-def extract_from_offers(offers: List[Dict]) -> List[Dict]:
-    """
-    Procesa múltiples ofertas (dict con 'id' y 'description').
-    Retorna [{id, technologies: [...]}, ...]
-    """
-    results = []
-    for offer in offers:
-        techs = extract_technologies(offer.get("description", ""))
-        results.append({
-            "id": offer.get("id"),
-            "technologies": techs
-        })
-    return results
+    return found
