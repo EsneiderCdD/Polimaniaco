@@ -2,7 +2,7 @@ from app import create_app
 from app.extensions import db
 from app.models.models import AnalisisResultado
 
-# Perfil del usuario: puntaje base = 1 por skill, luego puedes ponderar
+# ----------------- Perfil del usuario -----------------
 USER_PROFILE = {
     "lenguajes": ["javascript", "html5", "css3", "sql", "typescript", "python"],
     "frameworks": ["react"],
@@ -19,7 +19,7 @@ USER_PROFILE = {
     "erp_lowcode": [],
 }
 
-# Ponderación opcional por categoría (1 a 10)
+# ----------------- Ponderación por categoría -----------------
 CATEGORY_WEIGHTS = {
     "lenguajes": 3,
     "frameworks": 5,
@@ -36,27 +36,57 @@ CATEGORY_WEIGHTS = {
     "erp_lowcode": 1,
 }
 
-# Puntaje máximo permitido
+# ----------------- Peso por skill individual -----------------
+SKILL_WEIGHTS = {
+    "javascript": 5,
+    "html5": 4,
+    "css3": 3,
+    "sql": 4,
+    "typescript": 4,
+    "python": 5,
+    "react": 5,
+    "bootstrap": 3,
+    "tailwind": 3,
+    "postgresql": 4,
+    "git": 2,
+    "seo": 1,
+    "pasarelas de pago": 2,
+    "apis": 3,
+    "webservices": 3,
+    "api rest": 3,
+    "servicios web": 3,
+    "integraciones": 2
+}
+
+# ----------------- Puntaje máximo permitido -----------------
 MAX_SCORE = 100
 
-def compute_compatibility(analisis_skills, user_skills, category_weights=None, max_score=100):
+# ----------------- Función de compatibilidad -----------------
+def compute_compatibility(analisis_skills, user_skills, category_weights=None, skill_weights=None, max_score=100):
     """
     Calcula compatibilidad entre perfil del usuario y una oferta.
     - analisis_skills: dict con skills de la oferta
     - user_skills: dict con skills del usuario
     - category_weights: dict opcional de ponderaciones por categoría
+    - skill_weights: dict opcional de ponderaciones por skill
     - max_score: truncamiento máximo
     Retorna: puntaje total y detalle por categoría
     """
     category_weights = category_weights or {}
+    skill_weights = skill_weights or {}
     score = 0
     details = {}
 
     for category, skills in user_skills.items():
         oferta_skills = analisis_skills.get(category, [])
-        match_count = sum(1 for s in skills if s.lower() in [x.lower() for x in oferta_skills])
+        # Sumar el peso de cada skill que coincide
+        category_score = 0
+        for s in skills:
+            if s.lower() in [x.lower() for x in oferta_skills]:
+                category_score += skill_weights.get(s, 1)  # peso por skill individual
+        # Multiplicar por la ponderación de la categoría
         weight = category_weights.get(category, 1)
-        weighted_score = match_count * weight
+        weighted_score = category_score * weight
         details[category] = weighted_score
         score += weighted_score
 
@@ -66,6 +96,7 @@ def compute_compatibility(analisis_skills, user_skills, category_weights=None, m
 
     return score, details
 
+# ----------------- Ejecutar compatibilidad -----------------
 def run_compatibility():
     app = create_app()
     with app.app_context():
@@ -90,14 +121,13 @@ def run_compatibility():
             }
 
             puntaje, detalle = compute_compatibility(
-                analisis_skills, USER_PROFILE, CATEGORY_WEIGHTS, MAX_SCORE
+                analisis_skills, USER_PROFILE, CATEGORY_WEIGHTS, SKILL_WEIGHTS, MAX_SCORE
             )
 
             # Asignamos puntaje y URL
             a.compatibilidad = puntaje
             a.url = a.oferta.url if a.oferta else None
-
-            # Guardamos detalles si quieres depurarlos (opcional)
+            # Guardar detalle si quieres depurarlo
             # a.detalle_compatibilidad = str(detalle)
 
         db.session.commit()
