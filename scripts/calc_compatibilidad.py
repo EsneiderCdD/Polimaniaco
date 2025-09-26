@@ -21,14 +21,14 @@ USER_PROFILE = {
 
 # Ponderación opcional por categoría (1 a 10)
 CATEGORY_WEIGHTS = {
-    "lenguajes": 1,
-    "frameworks": 1,
-    "librerias": 1,
-    "bases_datos": 1,
-    "nube_devops": 1,
-    "control_versiones": 1,
+    "lenguajes": 3,
+    "frameworks": 5,
+    "librerias": 3,
+    "bases_datos": 2,
+    "nube_devops": 2,
+    "control_versiones": 3,
     "arquitectura_metodologias": 1,
-    "integraciones": 1,
+    "integraciones": 3,
     "inteligencia_artificial": 1,
     "ofimatica_gestion": 1,
     "ciberseguridad": 1,
