@@ -1,11 +1,3 @@
-"""
-Scraper principal modular para Computrabajo.
-- Pagina automáticamente hasta MAX_RESULTS o MAX_PAGES.
-- Extrae tarjetas, deja raw_fecha, luego aplica filtros.
-- Evita duplicados por URL y por título dentro de la misma ejecución.
-- Guarda en la DB usando app.create_app() context.
-- Solo guarda descripción básica; descripciones completas las llena micro_scraper_description.py
-"""
 
 import requests
 from bs4 import BeautifulSoup

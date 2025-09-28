@@ -1,15 +1,11 @@
-# Términos / ubicación base
-TERM = "desarrollador-de-software"   # palabra clave (sin espacios, con guiones)
-LOCATION = "antioquia"               # cambio de colombia -> antioquia
+TERM = "desarrollador-de-software"
+LOCATION = "antioquia"
 
-# Límites
-MAX_RESULTS = 500   # aumento de 150 -> 500
-MAX_PAGES = 30      # aumento de 10 -> 30
+MAX_RESULTS = 500
+MAX_PAGES = 30
 
-# Lista negra (empresas a ignorar). Edita esto según tu preferencia.
 BLACKLIST_COMPANIES = [
-    "bairesdev"
+    "bairesdev",
 ]
 
-# Tiempo entre requests (segundos)
-REQUEST_DELAY = 1.5
+REQUEST_DELAY = (1, 5) 
