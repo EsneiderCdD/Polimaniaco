@@ -105,3 +105,38 @@ class AnalisisResultado(db.Model):
 
     # Fecha de creación de este análisis
     fecha_analisis = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ----------------- NUEVAS TABLAS DE METRICAS -----------------
+
+class MetricasTecnologia(db.Model):
+    __tablename__ = 'metricas_tecnologia'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_tecnologia = db.Column(db.String(100), nullable=False)
+    categoria = db.Column(db.String(50))
+    conteo = db.Column(db.Integer, default=0)
+    porcentaje = db.Column(db.Float, default=0.0)
+    fecha_calculo = db.Column(db.DateTime, default=datetime.utcnow)
+
+class MetricasUbicacion(db.Model):
+    __tablename__ = 'metricas_ubicacion'
+    id = db.Column(db.Integer, primary_key=True)
+    ciudad = db.Column(db.String(255), nullable=False)
+    conteo = db.Column(db.Integer, default=0)
+    porcentaje = db.Column(db.Float, default=0.0)
+    fecha_calculo = db.Column(db.DateTime, default=datetime.utcnow)
+
+class MetricasModalidad(db.Model):
+    __tablename__ = 'metricas_modalidad'
+    id = db.Column(db.Integer, primary_key=True)
+    modalidad = db.Column(db.String(50), nullable=False)
+    conteo = db.Column(db.Integer, default=0)
+    porcentaje = db.Column(db.Float, default=0.0)
+    fecha_calculo = db.Column(db.DateTime, default=datetime.utcnow)
+
+class MetricasGenerales(db.Model):
+    __tablename__ = 'metricas_generales'
+    id = db.Column(db.Integer, primary_key=True)
+    total_ofertas = db.Column(db.Integer, default=0)
+    promedio_compatibilidad = db.Column(db.Float, default=0.0)
+    fecha_calculo = db.Column(db.DateTime, default=datetime.utcnow)

@@ -20,5 +20,15 @@
 - Genera el archivo JSON final con todos los análisis
 - Exporta los datos procesados para revisión externa
 
+### 5. `python -m scripts.calcular_metricas`
+- Calcula métricas agregadas a partir de las ofertas procesadas
+- Métricas incluidas:
+  - Tecnologías más solicitadas (conteo y porcentaje)
+  - Ubicaciones con más ofertas
+  - Modalidad de trabajo
+  - Métricas generales (total de ofertas y promedio de compatibilidad)
+- Actualiza las tablas: `metricas_tecnologia`, `metricas_ubicacion`, `metricas_modalidad`, `metricas_generales`
+
+
 ## Resumen del flujo:
 **Scraping → Procesamiento → Scoring → Exportación**

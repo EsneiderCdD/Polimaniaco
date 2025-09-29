@@ -121,4 +121,46 @@ def get_analisis():
             'fecha_analisis': a.fecha_analisis.isoformat() if a.fecha_analisis else None
         })
     return jsonify(resultados), 200
-    return jsonify(resultados), 200
+
+
+from app.models.models import (
+    MetricasTecnologia,
+    MetricasUbicacion,
+    MetricasModalidad,
+    MetricasGenerales
+)
+
+# --- Endpoints para Métricas ---
+@bp.route('/metricas/tecnologias', methods=['GET'])
+def get_metricas_tecnologias():
+    metrics = MetricasTecnologia.query.order_by(MetricasTecnologia.conteo.desc()).all()
+    return jsonify([
+        {
+            'nombre_tecnologia': m.nombre_tecnologia,
+            'categoria': m.categoria,
+            'conteo': m.conteo,
+            'porcentaje': m.porcentaje
+        } for m in metrics
+    ]), 200
+
+@bp.route('/metricas/ubicaciones', methods=['GET'])
+def get_metricas_ubicaciones():
+    metrics = MetricasUbicacion.query.order_by(MetricasUbicacion.conteo.desc()).all()
+    return jsonify([
+        {'ciudad': m.ciudad, 'conteo': m.conteo, 'porcentaje': m.porcentaje} for m in metrics
+    ]), 200
+
+@bp.route('/metricas/modalidades', methods=['GET'])
+def get_metricas_modalidades():
+    metrics = MetricasModalidad.query.order_by(MetricasModalidad.conteo.desc()).all()
+    return jsonify([
+        {'modalidad': m.modalidad, 'conteo': m.conteo, 'porcentaje': m.porcentaje} for m in metrics
+    ]), 200
+
+@bp.route('/metricas/generales', methods=['GET'])
+def get_metricas_generales():
+    metrics = MetricasGenerales.query.all()
+    return jsonify([
+        {'total_ofertas': m.total_ofertas, 'promedio_compatibilidad': m.promedio_compatibilidad} for m in metrics
+    ]), 200
+
