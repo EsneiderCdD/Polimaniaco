@@ -119,6 +119,7 @@ def get_analisis():
             'marketing_digital': a.marketing_digital,
             'erp_lowcode': a.erp_lowcode,
             'fecha_analisis': a.fecha_analisis.isoformat() if a.fecha_analisis else None
+            
         })
     return jsonify(resultados), 200
 

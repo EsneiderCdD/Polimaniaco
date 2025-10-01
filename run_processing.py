@@ -4,10 +4,11 @@ from datetime import datetime
 from app import create_app, db
 from app.models.models import Oferta, AnalisisResultado
 from app.processing.utils import normalize_text
+from app.processing.nivel_detector import calcular_nivel_score  # 🆕 NUEVO
 
 logging.basicConfig(level=logging.INFO)
 
-# 🧩 Diccionario de stack tecnológico
+# 🧩 Diccionario de stack tecnológico (sin cambios)
 STACK = {
     "lenguajes": [
         "php", "javascript", "node.js", "c#", "html5", "css3", "sql",
@@ -88,6 +89,7 @@ def main():
             resultado.ciudad = o.ubicacion
             resultado.modalidad = detectar_modalidad(o.descripcion or "")
             resultado.cargo = o.titulo
+            resultado.url = o.url  # 🆕 Asegurar que URL esté presente
 
             # Extraer stack tecnológico
             stack = extraer_stack(o.descripcion or "")
@@ -105,6 +107,10 @@ def main():
             resultado.marketing_digital = stack["marketing_digital"]
             resultado.erp_lowcode = stack["erp_lowcode"]
 
+            # 🆕 NUEVO: Calcular scoring de nivel
+            texto_completo = f"{o.titulo} {o.descripcion or ''}"
+            resultado.nivel_score = calcular_nivel_score(texto_completo)
+
             # Fecha del análisis
             resultado.fecha_analisis = datetime.utcnow()
 
@@ -113,7 +119,9 @@ def main():
 
             logging.info(
                 f"Oferta {o.id} procesada → "
-                f"Lenguajes: {resultado.lenguajes} | Frameworks: {resultado.frameworks}"
+                f"Nivel: {resultado.nivel_score} | "
+                f"Lenguajes: {resultado.lenguajes} | "
+                f"Frameworks: {resultado.frameworks}"
             )
 
         logging.info("✅ Procesamiento terminado. Datos guardados en analisis_resultados.")

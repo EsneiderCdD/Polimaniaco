@@ -61,16 +61,10 @@ SKILL_WEIGHTS = {
 # ----------------- Puntaje máximo permitido -----------------
 MAX_SCORE = 100
 
-# ----------------- Función de compatibilidad -----------------
+# ----------------- Función de compatibilidad (SIN CAMBIOS) -----------------
 def compute_compatibility(analisis_skills, user_skills, category_weights=None, skill_weights=None, max_score=100):
     """
     Calcula compatibilidad entre perfil del usuario y una oferta.
-    - analisis_skills: dict con skills de la oferta
-    - user_skills: dict con skills del usuario
-    - category_weights: dict opcional de ponderaciones por categoría
-    - skill_weights: dict opcional de ponderaciones por skill
-    - max_score: truncamiento máximo
-    Retorna: puntaje total y detalle por categoría
     """
     category_weights = category_weights or {}
     skill_weights = skill_weights or {}
@@ -79,22 +73,48 @@ def compute_compatibility(analisis_skills, user_skills, category_weights=None, s
 
     for category, skills in user_skills.items():
         oferta_skills = analisis_skills.get(category, [])
-        # Sumar el peso de cada skill que coincide
         category_score = 0
         for s in skills:
             if s.lower() in [x.lower() for x in oferta_skills]:
-                category_score += skill_weights.get(s, 1)  # peso por skill individual
-        # Multiplicar por la ponderación de la categoría
+                category_score += skill_weights.get(s, 1)
         weight = category_weights.get(category, 1)
         weighted_score = category_score * weight
         details[category] = weighted_score
         score += weighted_score
 
-    # Truncamiento
     if score > max_score:
         score = max_score
 
     return score, details
+
+
+# 🆕 NUEVA FUNCIÓN: Calcular compatibilidad final con factor de nivel
+def compute_final_score(stack_score, nivel_score):
+    """
+    Combina el puntaje de stack con el factor de nivel.
+    
+    Lógica:
+    - Si nivel_score >= 3 (junior claro) → Bonus +15%
+    - Si nivel_score >= 1 → Bonus +10%
+    - Si nivel_score == 0 → Sin cambio
+    - Si nivel_score <= -3 (senior claro) → Penalización -20%
+    - Si nivel_score < 0 → Penalización -10%
+    """
+    if nivel_score >= 3:
+        bonus = stack_score * 0.15
+        return min(100, stack_score + bonus)
+    elif nivel_score >= 1:
+        bonus = stack_score * 0.10
+        return min(100, stack_score + bonus)
+    elif nivel_score == 0:
+        return stack_score
+    elif nivel_score <= -3:
+        penalty = stack_score * 0.20
+        return max(0, stack_score - penalty)
+    else:  # nivel_score < 0
+        penalty = stack_score * 0.10
+        return max(0, stack_score - penalty)
+
 
 # ----------------- Ejecutar compatibilidad -----------------
 def run_compatibility():
@@ -120,22 +140,32 @@ def run_compatibility():
                 "erp_lowcode": a.erp_lowcode.split(", ") if a.erp_lowcode else [],
             }
 
-            puntaje, detalle = compute_compatibility(
+            # Calcular puntaje de stack (sin cambios)
+            stack_score, detalle = compute_compatibility(
                 analisis_skills, USER_PROFILE, CATEGORY_WEIGHTS, SKILL_WEIGHTS, MAX_SCORE
             )
 
-            # Asignamos puntaje y URL
-            a.compatibilidad = puntaje
+            # 🆕 NUEVO: Ajustar con factor de nivel
+            nivel_score = a.nivel_score or 0
+            final_score = compute_final_score(stack_score, nivel_score)
+
+            # Asignar puntaje final y URL
+            a.compatibilidad = round(final_score, 2)
             a.url = a.oferta.url if a.oferta else None
-            # Guardar detalle si quieres depurarlo
-            # a.detalle_compatibilidad = str(detalle)
 
         db.session.commit()
 
-        # Mostrar resultados ordenados
+        # Mostrar resultados ordenados (top 10)
         resultados_ordenados = sorted(analisis_list, key=lambda x: x.compatibilidad, reverse=True)
-        for r in resultados_ordenados:
-            print(f"Puntaje: {r.compatibilidad}, Título: {r.cargo}, URL: {r.url}, Detalle: {detalle}")
+        print("\n" + "="*80)
+        print("TOP 10 OFERTAS MÁS COMPATIBLES")
+        print("="*80)
+        for i, r in enumerate(resultados_ordenados[:10], 1):
+            print(f"\n{i}. {r.cargo}")
+            print(f"   Compatibilidad: {r.compatibilidad:.2f} | Nivel Score: {r.nivel_score}")
+            print(f"   Ciudad: {r.ciudad} | Modalidad: {r.modalidad}")
+            print(f"   URL: {r.url}")
+        print("\n" + "="*80)
 
 if __name__ == "__main__":
     run_compatibility()

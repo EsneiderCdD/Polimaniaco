@@ -76,36 +76,38 @@ class AnalisisResultado(db.Model):
     oferta_id = db.Column(db.Integer, db.ForeignKey('ofertas.id'), nullable=False)
     oferta = db.relationship('Oferta', backref=db.backref('analisis_resultado', lazy=True))
 
-    # URL de la oferta (nuevo)
+    # URL de la oferta
     url = db.Column(db.String(512))
 
-    # Puntaje de compatibilidad (nuevo)
+    # Puntaje de compatibilidad
     compatibilidad = db.Column(db.Float, default=0.0)
 
-    # Datos principales de la oferta (copiados para conveniencia)
+    # 🆕 NUEVO: Scoring de nivel (junior/mid/senior)
+    nivel_score = db.Column(db.Integer, default=0)  # Rango: -10 a +10
+
+    # Datos principales de la oferta
     fecha = db.Column(db.DateTime)
     ciudad = db.Column(db.String(255))
     modalidad = db.Column(db.String(255))
     cargo = db.Column(db.String(255))
 
-    # Stack tecnológico: columnas amplias (todas opcionales al inicio)
-    lenguajes = db.Column(db.Text)               # Ej: "PHP, JavaScript, Python"
-    frameworks = db.Column(db.Text)              # Ej: "Laravel, Vue.js"
-    librerias = db.Column(db.Text)               # Ej: "Bootstrap, jQuery"
-    bases_datos = db.Column(db.Text)             # Ej: "MySQL, SQL Server"
-    nube_devops = db.Column(db.Text)             # Ej: "Azure, Docker"
-    control_versiones = db.Column(db.Text)       # Ej: "Git"
-    arquitectura_metodologias = db.Column(db.Text) # Ej: "Microservicios, SOLID"
-    integraciones = db.Column(db.Text)           # Ej: "APIs, Pasarelas de pago"
-    inteligencia_artificial = db.Column(db.Text) # Ej: "IA básica"
-    ofimatica_gestion = db.Column(db.Text)       # Ej: "Jira, Trello, Excel"
-    ciberseguridad = db.Column(db.Text)          # Ej: "Unit Testing, Buenas prácticas"
-    marketing_digital = db.Column(db.Text)       # Ej: "SEO, Marketing digital"
-    erp_lowcode = db.Column(db.Text)             # Ej: "Odoo, WordPress"
+    # Stack tecnológico (columnas amplias - todas opcionales)
+    lenguajes = db.Column(db.Text)
+    frameworks = db.Column(db.Text)
+    librerias = db.Column(db.Text)
+    bases_datos = db.Column(db.Text)
+    nube_devops = db.Column(db.Text)
+    control_versiones = db.Column(db.Text)
+    arquitectura_metodologias = db.Column(db.Text)
+    integraciones = db.Column(db.Text)
+    inteligencia_artificial = db.Column(db.Text)
+    ofimatica_gestion = db.Column(db.Text)
+    ciberseguridad = db.Column(db.Text)
+    marketing_digital = db.Column(db.Text)
+    erp_lowcode = db.Column(db.Text)
 
     # Fecha de creación de este análisis
     fecha_analisis = db.Column(db.DateTime, default=datetime.utcnow)
-
 
 # ----------------- NUEVAS TABLAS DE METRICAS -----------------
 
