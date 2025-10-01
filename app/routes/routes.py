@@ -1,11 +1,20 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from app.models import Oferta, Busqueda, Nota
-from app.models.models import Oferta, Busqueda, Nota, AnalisisResultado
+from app.models.models import (
+    Oferta, Busqueda, Nota, AnalisisResultado,
+    MetricasTecnologia,
+    MetricasUbicacion,
+    MetricasModalidad,
+    MetricasGenerales
+)
+import threading
+import logging
 
 bp = Blueprint('api', __name__)
+logger = logging.getLogger(__name__)
 
-# Endpoint para listar todas las ofertas
+# ==================== ENDPOINTS OFERTAS ====================
 @bp.route('/ofertas', methods=['GET'])
 def get_ofertas():
     ofertas = Oferta.query.all()
@@ -23,7 +32,6 @@ def get_ofertas():
         })
     return jsonify(resultados), 200
 
-# Endpoint para agregar una oferta manualmente (para pruebas)
 @bp.route('/ofertas', methods=['POST'])
 def add_oferta():
     data = request.get_json()
@@ -40,7 +48,7 @@ def add_oferta():
     db.session.commit()
     return jsonify({'mensaje': 'Oferta creada', 'id': nueva_oferta.id}), 201
 
-# --- Endpoints para Busquedas ---
+# ==================== ENDPOINTS BUSQUEDAS ====================
 @bp.route('/busquedas', methods=['GET'])
 def get_busquedas():
     busquedas = Busqueda.query.all()
@@ -66,7 +74,7 @@ def add_busqueda():
     db.session.commit()
     return jsonify({'mensaje': 'Busqueda creada', 'id': nueva_busqueda.id}), 201
 
-# --- Endpoints para Notas ---
+# ==================== ENDPOINTS NOTAS ====================
 @bp.route('/notas', methods=['GET'])
 def get_notas():
     notas = Nota.query.all()
@@ -90,7 +98,7 @@ def add_nota():
     db.session.commit()
     return jsonify({'mensaje': 'Nota creada', 'id': nueva_nota.id}), 201
 
-# --- Endpoints para AnalisisResultado ---
+# ==================== ENDPOINTS ANALISIS ====================
 @bp.route('/analisis', methods=['GET'])
 def get_analisis():
     analisis = AnalisisResultado.query.all()
@@ -99,8 +107,9 @@ def get_analisis():
         resultados.append({
             'id': a.id,
             'oferta_id': a.oferta_id,
-            'url': a.url,  # Nuevo
-            'compatibilidad': a.compatibilidad,  # Nuevo
+            'url': a.url,
+            'compatibilidad': a.compatibilidad,
+            'nivel_score': a.nivel_score,
             'fecha': a.fecha.isoformat() if a.fecha else None,
             'ciudad': a.ciudad,
             'modalidad': a.modalidad,
@@ -119,19 +128,10 @@ def get_analisis():
             'marketing_digital': a.marketing_digital,
             'erp_lowcode': a.erp_lowcode,
             'fecha_analisis': a.fecha_analisis.isoformat() if a.fecha_analisis else None
-            
         })
     return jsonify(resultados), 200
 
-
-from app.models.models import (
-    MetricasTecnologia,
-    MetricasUbicacion,
-    MetricasModalidad,
-    MetricasGenerales
-)
-
-# --- Endpoints para Métricas ---
+# ==================== ENDPOINTS MÉTRICAS ====================
 @bp.route('/metricas/tecnologias', methods=['GET'])
 def get_metricas_tecnologias():
     metrics = MetricasTecnologia.query.order_by(MetricasTecnologia.conteo.desc()).all()
@@ -165,3 +165,103 @@ def get_metricas_generales():
         {'total_ofertas': m.total_ofertas, 'promedio_compatibilidad': m.promedio_compatibilidad} for m in metrics
     ]), 200
 
+# ==================== ENDPOINTS PROCESO COMPLETO ====================
+
+# Variable global para tracking del estado del proceso
+proceso_estado = {
+    "en_ejecucion": False,
+    "progreso": 0,
+    "mensaje": "",
+    "error": None
+}
+
+def ejecutar_proceso_completo():
+    """Ejecuta todo el proceso en un thread separado"""
+    global proceso_estado
+    
+    try:
+        from app.scrapers.computrabajo.micro_scraper_description import get_offers, get_details
+        from scripts.calc_compatibilidad import run_compatibility
+        from scripts.calcular_metricas import calcular_metricas
+        from run_processing import main as process_main
+        
+        proceso_estado["en_ejecucion"] = True
+        proceso_estado["error"] = None
+        
+        # 1. Scraper de ofertas
+        proceso_estado["progreso"] = 20
+        proceso_estado["mensaje"] = "Recolectando ofertas..."
+        logger.info("1/5 - Iniciando scraper de ofertas...")
+        get_offers()
+        
+        # 2. Scraper de descripciones
+        proceso_estado["progreso"] = 40
+        proceso_estado["mensaje"] = "Obteniendo descripciones completas..."
+        logger.info("2/5 - Iniciando scraper de descripciones...")
+        get_details()
+        
+        # 3. Procesamiento
+        proceso_estado["progreso"] = 60
+        proceso_estado["mensaje"] = "Procesando stack tecnológico..."
+        logger.info("3/5 - Iniciando procesamiento de ofertas...")
+        process_main()
+        
+        # 4. Compatibilidad
+        proceso_estado["progreso"] = 80
+        proceso_estado["mensaje"] = "Calculando compatibilidad..."
+        logger.info("4/5 - Calculando compatibilidad...")
+        run_compatibility()
+        
+        # 5. Métricas
+        proceso_estado["progreso"] = 90
+        proceso_estado["mensaje"] = "Calculando métricas..."
+        logger.info("5/5 - Calculando métricas...")
+        calcular_metricas()
+        
+        # Finalizado
+        proceso_estado["progreso"] = 100
+        proceso_estado["mensaje"] = "Proceso completado exitosamente"
+        logger.info("🎉 PROCESO COMPLETO FINALIZADO")
+        
+    except Exception as e:
+        logger.exception(f"Error en el proceso: {e}")
+        proceso_estado["error"] = str(e)
+        proceso_estado["mensaje"] = f"Error: {str(e)}"
+    finally:
+        proceso_estado["en_ejecucion"] = False
+
+
+@bp.route('/ejecutar-proceso', methods=['POST'])
+def ejecutar_proceso():
+    """Endpoint para ejecutar el proceso completo desde el frontend"""
+    global proceso_estado
+    
+    if proceso_estado["en_ejecucion"]:
+        return jsonify({
+            "mensaje": "Ya hay un proceso en ejecución",
+            "estado": proceso_estado
+        }), 409  # Conflict
+    
+    # Reiniciar estado
+    proceso_estado = {
+        "en_ejecucion": True,
+        "progreso": 0,
+        "mensaje": "Iniciando proceso...",
+        "error": None
+    }
+    
+    # Ejecutar en un thread separado para no bloquear la respuesta
+    thread = threading.Thread(target=ejecutar_proceso_completo)
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({
+        "mensaje": "Proceso iniciado correctamente",
+        "estado": proceso_estado
+    }), 202  # Accepted
+
+
+@bp.route('/estado-proceso', methods=['GET'])
+def estado_proceso():
+    """Endpoint para consultar el estado del proceso en ejecución"""
+    return jsonify(proceso_estado), 200
